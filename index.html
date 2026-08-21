@@ -295,7 +295,7 @@ function renderEpisodeLists(){
   });
 }
 
-function openEpisode(index){
+function openEpisode(index, updateHash=true){
   if(index<0||index>=episodes.length||!isReleased(episodes[index]))return;
   currentIndex=index;
   const ep=episodes[index];
@@ -306,7 +306,9 @@ function openEpisode(index){
   loadComicImage(ep);
   updateNavigation();
   renderEpisodeLists();
-  history.replaceState(null,"",`#d-${ep.dDay}`);
+  if(updateHash){
+    history.replaceState(null,"",`#d-${ep.dDay}`);
+  }
   closeMobileDrawer();
 }
 
@@ -444,8 +446,13 @@ function getEpisodeFromHash(){
   return i>=0&&isReleased(episodes[i])?i:null;
 }
 const hashEpisode=getEpisodeFromHash();
-if(hashEpisode!==null)currentIndex=hashEpisode;
-openEpisode(currentIndex);
+if(hashEpisode!==null){
+  currentIndex=hashEpisode;
+  openEpisode(currentIndex, false);
+}else{
+  currentIndex=getLatestReleasedIndex();
+  openEpisode(currentIndex, false);
+}
 </script>
 </body>
 </html>
