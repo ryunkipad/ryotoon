@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>수능 D-100 만화</title>
+
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:#f5f5f5;color:#222;font-family:"Pretendard","Noto Sans KR",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button{font-family:inherit;-webkit-tap-highlight-color:transparent}
+.page{min-height:100vh}
+.top-header{background:#fff;border-bottom:1px solid #e9e9e9}
+.top-header-inner{width:min(1180px,calc(100% - 32px));height:64px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.logo{font-size:19px;font-weight:800;letter-spacing:-.5px;white-space:nowrap}
+.header-desc{font-size:13px;color:#999;text-align:right}
+.layout{width:min(1180px,calc(100% - 32px));margin:30px auto 60px;display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:28px;align-items:start}
+.viewer-area{min-width:0}
+.episode-header{margin-bottom:18px}
+.episode-count{margin-bottom:5px;font-size:13px;color:#999}
+.episode-title{margin:0;font-size:30px;line-height:1.25;font-weight:850;letter-spacing:-1px}
+.episode-date{margin-top:8px;font-size:13px;color:#999}
+
+.comic-frame{position:relative;width:100%;max-width:760px;margin:0 auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.05),0 15px 40px rgba(0,0,0,.06)}
+.comic-image-wrap{position:relative;width:100%;background:#fff;cursor:zoom-in}
+.comic-image{display:block;width:100%;height:auto}
+.image-loading,.image-error{aspect-ratio:210/297;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#aaa;background:#fafafa}
+.image-error{display:none}
+.image-error-icon{margin-bottom:12px;font-size:35px}
+.image-error-title{font-size:15px;font-weight:700;color:#777}
+.image-error-file{margin-top:7px;font-size:12px;color:#aaa}
+.zoom-guide{position:absolute;right:12px;bottom:12px;padding:7px 10px;border-radius:20px;background:rgba(0,0,0,.68);color:#fff;font-size:11px;line-height:1;pointer-events:none;opacity:.85}
+
+.episode-nav{width:100%;max-width:760px;margin:20px auto 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.nav-btn{min-height:55px;padding:8px 16px;border:1px solid #ddd;border-radius:8px;background:#fff;color:#333;cursor:pointer;display:flex;flex-direction:column;justify-content:center}
+.nav-btn.prev{text-align:left;align-items:flex-start}
+.nav-btn.next{text-align:right;align-items:flex-end}
+.nav-btn:disabled{opacity:.35;cursor:default}
+.nav-small{margin-bottom:3px;font-size:11px;color:#aaa}
+.nav-name{font-size:14px;font-weight:700}
+.mobile-list-btn{display:none;width:100%;max-width:760px;min-height:50px;margin:10px auto 0;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:14px;font-weight:700;cursor:pointer}
+
+.episode-sidebar{position:sticky;top:20px;background:#fff;border:1px solid #e5e5e5;border-radius:10px;overflow:hidden}
+.sidebar-header{height:54px;padding:0 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eee}
+.sidebar-title{font-size:15px;font-weight:800}
+.sidebar-progress{font-size:11px;color:#999}
+.episode-list{max-height:calc(100vh - 130px);overflow-y:auto}
+.episode-item{width:100%;min-height:55px;padding:9px 14px;border:0;border-bottom:1px solid #f2f2f2;background:#fff;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.episode-item.active{background:#222;color:#fff}
+.episode-item.locked{cursor:default;opacity:.44}
+.episode-item-main{min-width:0}
+.episode-item-title{font-size:14px;font-weight:750}
+.episode-item-date{margin-top:3px;font-size:10px;color:#aaa}
+.episode-item.active .episode-item-date{color:rgba(255,255,255,.65)}
+.episode-status{flex:0 0 auto;font-size:12px}
+
+.mobile-drawer-bg{display:none;position:fixed;z-index:8000;inset:0;background:rgba(0,0,0,.5)}
+.mobile-drawer-bg.open{display:block}
+.mobile-drawer{position:absolute;left:0;right:0;bottom:0;max-height:82vh;background:#fff;border-radius:18px 18px 0 0;overflow:hidden}
+.drawer-handle{width:40px;height:4px;margin:9px auto 3px;border-radius:10px;background:#ddd}
+.drawer-header{height:52px;padding:0 17px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eee}
+.drawer-title{font-size:16px;font-weight:800}
+.drawer-close{width:35px;height:35px;border:0;border-radius:50%;background:#f1f1f1;font-size:18px;cursor:pointer}
+.mobile-episode-list{max-height:calc(82vh - 65px);overflow-y:auto}
+
+.zoom-modal{display:none;position:fixed;z-index:99999;inset:0;background:rgba(0,0,0,.96);overflow:hidden;touch-action:none}
+.zoom-modal.open{display:block}
+.zoom-top{position:absolute;z-index:20;left:0;right:0;top:0;height:58px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;color:#fff;background:linear-gradient(to bottom,rgba(0,0,0,.65),transparent)}
+.zoom-title{font-size:14px;font-weight:700}
+.zoom-actions{display:flex;gap:6px}
+.zoom-action-btn{width:40px;height:40px;border:0;border-radius:50%;background:rgba(255,255,255,.13);color:#fff;font-size:17px;cursor:pointer}
+.zoom-stage{position:absolute;inset:0;overflow:hidden;cursor:grab;touch-action:none}
+.zoom-stage.dragging{cursor:grabbing}
+.zoom-image{position:absolute;left:50%;top:50%;max-width:none;user-select:none;-webkit-user-drag:none;transform-origin:center center;will-change:transform}
+.zoom-bottom{position:absolute;z-index:20;left:50%;bottom:18px;transform:translateX(-50%);padding:8px 13px;border-radius:30px;background:rgba(0,0,0,.55);color:rgba(255,255,255,.8);font-size:11px;white-space:nowrap;pointer-events:none}
+
+@media(max-width:850px){
+  .top-header-inner{width:calc(100% - 28px);height:57px}
+  .logo{font-size:17px}
+  .header-desc{display:none}
+  .layout{width:100%;margin:0 auto 35px;display:block}
+  .episode-header{padding:19px 16px 13px;margin:0}
+  .episode-title{font-size:25px}
+  .comic-frame{max-width:none;border-radius:0;box-shadow:none}
+  .episode-nav{width:calc(100% - 24px);margin-top:13px}
+  .mobile-list-btn{display:block;width:calc(100% - 24px)}
+  .episode-sidebar{display:none}
+  .zoom-guide{right:9px;bottom:9px;padding:6px 9px;font-size:10px}
+}
+</style>
+</head>
+
+<body>
+<div class="page">
+  <header class="top-header">
+    <div class="top-header-inner">
+      <div class="logo">수능 D-100 만화</div>
+      <div class="header-desc">수능까지, 하루 한 장</div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="viewer-area">
+      <div class="episode-header">
+        <div class="episode-count" id="episodeCount"></div>
+        <h1 class="episode-title" id="episodeTitle">D-100</h1>
+        <div class="episode-date" id="episodeDate"></div>
+      </div>
+
+      <div class="comic-frame">
+        <div class="comic-image-wrap" id="comicImageWrap">
+          <div class="image-loading" id="imageLoading">이미지를 불러오는 중...</div>
+          <img id="comicImage" class="comic-image" alt="" draggable="false" style="display:none">
+          <div class="image-error" id="imageError">
+            <div class="image-error-icon">🖼️</div>
+            <div class="image-error-title">아직 이미지가 등록되지 않았습니다.</div>
+            <div class="image-error-file" id="imageErrorFile"></div>
+          </div>
+          <div class="zoom-guide">🔍 눌러서 크게 보기</div>
+        </div>
+      </div>
+
+      <div class="episode-nav">
+        <button class="nav-btn prev" id="prevBtn">
+          <span class="nav-small">← 이전화</span>
+          <span class="nav-name" id="prevName"></span>
+        </button>
+        <button class="nav-btn next" id="nextBtn">
+          <span class="nav-small">다음화 →</span>
+          <span class="nav-name" id="nextName"></span>
+        </button>
+      </div>
+
+      <button class="mobile-list-btn" id="mobileListBtn">☰ 전체 회차</button>
+    </section>
+
+    <aside class="episode-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">전체 회차</div>
+        <div class="sidebar-progress" id="sidebarProgress"></div>
+      </div>
+      <div class="episode-list" id="episodeList"></div>
+    </aside>
+  </main>
+</div>
+
+<div class="mobile-drawer-bg" id="mobileDrawerBg">
+  <div class="mobile-drawer">
+    <div class="drawer-handle"></div>
+    <div class="drawer-header">
+      <div class="drawer-title">전체 회차</div>
+      <button class="drawer-close" id="drawerClose">×</button>
+    </div>
+    <div class="mobile-episode-list" id="mobileEpisodeList"></div>
+  </div>
+</div>
+
+<div class="zoom-modal" id="zoomModal">
+  <div class="zoom-top">
+    <div class="zoom-title" id="zoomTitle"></div>
+    <div class="zoom-actions">
+      <button class="zoom-action-btn" id="zoomOutBtn">−</button>
+      <button class="zoom-action-btn" id="zoomResetBtn">1:1</button>
+      <button class="zoom-action-btn" id="zoomInBtn">+</button>
+      <button class="zoom-action-btn" id="zoomCloseBtn">×</button>
+    </div>
+  </div>
+
+  <div class="zoom-stage" id="zoomStage">
+    <img id="zoomImage" class="zoom-image" alt="" draggable="false">
+  </div>
+
+  <div class="zoom-bottom">손가락으로 확대·이동 / PC는 마우스 휠 확대</div>
+</div>
+
+<script>
+const SERIES_START_DATE = "2026-08-21";
+const IMAGE_FOLDER = "images";
+const TOTAL_EPISODES = 100;
+const USE_DAILY_RELEASE = true;
+
+function parseLocalDate(s){
+  const p=s.split("-");
+  return new Date(+p[0],+p[1]-1,+p[2],0,0,0,0);
+}
+function addDays(date,days){
+  const d=new Date(date); d.setDate(d.getDate()+days); return d;
+}
+function formatDate(date){
+  return `${date.getFullYear()}.${String(date.getMonth()+1).padStart(2,"0")}.${String(date.getDate()).padStart(2,"0")}`;
+}
+function getToday(){
+  const n=new Date(); return new Date(n.getFullYear(),n.getMonth(),n.getDate());
+}
+
+const start=parseLocalDate(SERIES_START_DATE);
+const episodes=[];
+for(let i=0;i<TOTAL_EPISODES;i++){
+  const dDay=100-i;
+  episodes.push({
+    index:i,
+    dDay,
+    title:`D-${dDay}`,
+    publishDate:addDays(start,i),
+    image:`${IMAGE_FOLDER}/d-${dDay}.png`
+  });
+}
+function isReleased(ep){
+  return !USE_DAILY_RELEASE || getToday()>=ep.publishDate;
+}
+function getLatestReleasedIndex(){
+  let latest=0;
+  episodes.forEach((ep,i)=>{if(isReleased(ep)) latest=i;});
+  return latest;
+}
+
+const $=id=>document.getElementById(id);
+const episodeCount=$("episodeCount"),episodeTitle=$("episodeTitle"),episodeDate=$("episodeDate");
+const comicImage=$("comicImage"),comicImageWrap=$("comicImageWrap"),imageLoading=$("imageLoading"),imageError=$("imageError"),imageErrorFile=$("imageErrorFile");
+const prevBtn=$("prevBtn"),nextBtn=$("nextBtn"),prevName=$("prevName"),nextName=$("nextName");
+const episodeList=$("episodeList"),sidebarProgress=$("sidebarProgress"),mobileEpisodeList=$("mobileEpisodeList");
+const mobileListBtn=$("mobileListBtn"),mobileDrawerBg=$("mobileDrawerBg"),drawerClose=$("drawerClose");
+
+let currentIndex=getLatestReleasedIndex();
+
+function loadComicImage(ep){
+  imageLoading.style.display="flex";
+  comicImage.style.display="none";
+  imageError.style.display="none";
+
+  comicImage.onload=()=>{
+    imageLoading.style.display="none";
+    comicImage.style.display="block";
+  };
+  comicImage.onerror=()=>{
+    imageLoading.style.display="none";
+    comicImage.style.display="none";
+    imageError.style.display="flex";
+    imageErrorFile.textContent=ep.image;
+  };
+  comicImage.src=ep.image;
+  comicImage.alt=`${ep.title} 만화`;
+}
+
+function updateNavigation(){
+  const pi=currentIndex-1, ni=currentIndex+1;
+  if(pi>=0){
+    prevBtn.disabled=false; prevName.textContent=episodes[pi].title;
+  }else{
+    prevBtn.disabled=true; prevName.textContent="첫 회차입니다";
+  }
+
+  if(ni<episodes.length && isReleased(episodes[ni])){
+    nextBtn.disabled=false; nextName.textContent=episodes[ni].title;
+  }else{
+    nextBtn.disabled=true;
+    nextName.textContent=ni<episodes.length ? "아직 공개되지 않았습니다" : "마지막 회차입니다";
+  }
+}
+
+function createEpisodeItem(ep,index){
+  const b=document.createElement("button");
+  b.className="episode-item";
+  if(index===currentIndex)b.classList.add("active");
+  const released=isReleased(ep);
+  if(!released){b.classList.add("locked");b.disabled=true;}
+
+  const main=document.createElement("div");
+  main.className="episode-item-main";
+  const t=document.createElement("div");
+  t.className="episode-item-title"; t.textContent=ep.title;
+  const d=document.createElement("div");
+  d.className="episode-item-date"; d.textContent=formatDate(ep.publishDate);
+  const s=document.createElement("div");
+  s.className="episode-status";
+  s.textContent=!released ? "🔒" : index===currentIndex ? "●" : "";
+
+  main.append(t,d); b.append(main,s);
+  if(released)b.onclick=()=>{openEpisode(index);window.scrollTo({top:0,behavior:"smooth"});};
+  return b;
+}
+
+function renderEpisodeLists(){
+  episodeList.innerHTML=""; mobileEpisodeList.innerHTML="";
+  let count=0;
+  episodes.forEach((ep,i)=>{
+    if(isReleased(ep))count++;
+    episodeList.appendChild(createEpisodeItem(ep,i));
+    mobileEpisodeList.appendChild(createEpisodeItem(ep,i));
+  });
+  sidebarProgress.textContent=`${count} / ${TOTAL_EPISODES}`;
+  requestAnimationFrame(()=>{
+    const a=episodeList.querySelector(".episode-item.active");
+    if(a)a.scrollIntoView({block:"center"});
+  });
+}
+
+function openEpisode(index){
+  if(index<0||index>=episodes.length||!isReleased(episodes[index]))return;
+  currentIndex=index;
+  const ep=episodes[index];
+  episodeCount.textContent=`${index+1}화`;
+  episodeTitle.textContent=ep.title;
+  episodeDate.textContent=`${formatDate(ep.publishDate)} 공개`;
+  document.title=`${ep.title} | 수능 D-100 만화`;
+  loadComicImage(ep);
+  updateNavigation();
+  renderEpisodeLists();
+  history.replaceState(null,"",`#d-${ep.dDay}`);
+  closeMobileDrawer();
+}
+
+prevBtn.onclick=()=>{openEpisode(currentIndex-1);window.scrollTo({top:0,behavior:"smooth"});};
+nextBtn.onclick=()=>{openEpisode(currentIndex+1);window.scrollTo({top:0,behavior:"smooth"});};
+
+mobileListBtn.onclick=()=>{
+  mobileDrawerBg.classList.add("open");
+  document.body.style.overflow="hidden";
+};
+drawerClose.onclick=closeMobileDrawer;
+mobileDrawerBg.onclick=e=>{if(e.target===mobileDrawerBg)closeMobileDrawer();};
+function closeMobileDrawer(){
+  mobileDrawerBg.classList.remove("open");
+  if(!$("zoomModal").classList.contains("open"))document.body.style.overflow="";
+}
+
+const zoomModal=$("zoomModal"),zoomStage=$("zoomStage"),zoomImage=$("zoomImage"),zoomTitle=$("zoomTitle");
+let zoomScale=1,zoomX=0,zoomY=0,baseWidth=0,baseHeight=0;
+const MIN_ZOOM=1,MAX_ZOOM=6;
+
+function calculateBaseImageSize(){
+  const sw=zoomStage.clientWidth, sh=zoomStage.clientHeight;
+  const ratio=zoomImage.naturalWidth/zoomImage.naturalHeight;
+  if(ratio>sw/sh){baseWidth=sw*.94;baseHeight=baseWidth/ratio;}
+  else{baseHeight=sh*.9;baseWidth=baseHeight*ratio;}
+  zoomImage.style.width=`${baseWidth}px`;
+  zoomImage.style.height=`${baseHeight}px`;
+}
+function applyZoomTransform(){
+  zoomImage.style.transform=`translate(calc(-50% + ${zoomX}px),calc(-50% + ${zoomY}px)) scale(${zoomScale})`;
+}
+function resetZoom(){zoomScale=1;zoomX=0;zoomY=0;applyZoomTransform();}
+function setZoom(v){
+  zoomScale=Math.min(MAX_ZOOM,Math.max(MIN_ZOOM,v));
+  if(zoomScale===1){zoomX=0;zoomY=0;}
+  applyZoomTransform();
+}
+function openZoomViewer(){
+  if(comicImage.style.display==="none")return;
+  const ep=episodes[currentIndex];
+  zoomTitle.textContent=ep.title;
+  zoomModal.classList.add("open");
+  document.body.style.overflow="hidden";
+  zoomImage.onload=()=>{calculateBaseImageSize();resetZoom();};
+  zoomImage.src=ep.image;
+}
+function closeZoomViewer(){
+  zoomModal.classList.remove("open");
+  document.body.style.overflow="";
+}
+
+comicImageWrap.onclick=openZoomViewer;
+$("zoomCloseBtn").onclick=closeZoomViewer;
+$("zoomInBtn").onclick=()=>setZoom(zoomScale+.5);
+$("zoomOutBtn").onclick=()=>setZoom(zoomScale-.5);
+$("zoomResetBtn").onclick=resetZoom;
+
+zoomStage.addEventListener("wheel",e=>{
+  e.preventDefault();
+  setZoom(zoomScale+(e.deltaY<0?.25:-.25));
+},{passive:false});
+
+let dragging=false,dsx=0,dsy=0,dox=0,doy=0;
+zoomStage.addEventListener("mousedown",e=>{
+  if(zoomScale<=1)return;
+  dragging=true; dsx=e.clientX; dsy=e.clientY; dox=zoomX; doy=zoomY;
+  zoomStage.classList.add("dragging");
+});
+window.addEventListener("mousemove",e=>{
+  if(!dragging)return;
+  zoomX=dox+(e.clientX-dsx); zoomY=doy+(e.clientY-dsy); applyZoomTransform();
+});
+window.addEventListener("mouseup",()=>{dragging=false;zoomStage.classList.remove("dragging");});
+
+let touchMode=null,touchStartDistance=0,touchStartScale=1,touchStartX=0,touchStartY=0,touchOriginX=0,touchOriginY=0,lastTap=0;
+const touchDistance=(a,b)=>Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
+
+zoomStage.addEventListener("touchstart",e=>{
+  if(e.touches.length===2){
+    touchMode="pinch";
+    touchStartDistance=touchDistance(e.touches[0],e.touches[1]);
+    touchStartScale=zoomScale;
+  }else if(e.touches.length===1&&zoomScale>1){
+    touchMode="drag";
+    touchStartX=e.touches[0].clientX; touchStartY=e.touches[0].clientY;
+    touchOriginX=zoomX; touchOriginY=zoomY;
+  }
+},{passive:false});
+
+zoomStage.addEventListener("touchmove",e=>{
+  e.preventDefault();
+  if(touchMode==="pinch"&&e.touches.length===2){
+    setZoom(touchStartScale*(touchDistance(e.touches[0],e.touches[1])/touchStartDistance));
+  }else if(touchMode==="drag"&&e.touches.length===1){
+    zoomX=touchOriginX+(e.touches[0].clientX-touchStartX);
+    zoomY=touchOriginY+(e.touches[0].clientY-touchStartY);
+    applyZoomTransform();
+  }
+},{passive:false});
+
+zoomStage.addEventListener("touchend",e=>{
+  touchMode=null;
+  if(e.changedTouches.length===1){
+    const now=Date.now();
+    if(now-lastTap>0&&now-lastTap<280){
+      zoomScale>1?resetZoom():setZoom(2.5);
+    }
+    lastTap=now;
+  }
+});
+
+zoomStage.ondblclick=()=>zoomScale>1?resetZoom():setZoom(2.5);
+
+document.addEventListener("keydown",e=>{
+  if(zoomModal.classList.contains("open")){
+    if(e.key==="Escape")closeZoomViewer();
+    return;
+  }
+  if(e.key==="ArrowLeft"&&!prevBtn.disabled)openEpisode(currentIndex-1);
+  if(e.key==="ArrowRight"&&!nextBtn.disabled)openEpisode(currentIndex+1);
+});
+
+window.addEventListener("resize",()=>{
+  if(zoomModal.classList.contains("open")){
+    calculateBaseImageSize();resetZoom();
+  }
+});
+
+function getEpisodeFromHash(){
+  const m=location.hash.replace("#","").toLowerCase().match(/^d-(\d+)$/);
+  if(!m)return null;
+  const dd=Number(m[1]);
+  const i=episodes.findIndex(e=>e.dDay===dd);
+  return i>=0&&isReleased(episodes[i])?i:null;
+}
+const hashEpisode=getEpisodeFromHash();
+if(hashEpisode!==null)currentIndex=hashEpisode;
+openEpisode(currentIndex);
+</script>
+</body>
+</html>
