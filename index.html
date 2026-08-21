@@ -87,6 +87,13 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent}
   .episode-sidebar{display:none}
   .zoom-guide{right:9px;bottom:9px;padding:6px 9px;font-size:10px}
 }
+
+.version-toggle{width:100%;max-width:760px;margin:0 auto 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.version-btn{min-height:44px;border:1px solid #d8d8d8;border-radius:9px;background:#fff;color:#555;font-size:14px;font-weight:750;cursor:pointer}
+.version-btn.active{background:#222;border-color:#222;color:#fff}
+.version-note{width:100%;max-width:760px;margin:-2px auto 10px;font-size:11px;color:#999;text-align:right}
+@media(max-width:850px){.version-toggle{width:calc(100% - 24px);margin-top:2px;margin-bottom:10px}.version-note{width:calc(100% - 24px)}}
+
 </style>
 </head>
 
@@ -106,6 +113,13 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent}
         <h1 class="episode-title" id="episodeTitle">D-100</h1>
         <div class="episode-date" id="episodeDate"></div>
       </div>
+
+
+      <div class="version-toggle" aria-label="만화 버전 선택">
+        <button class="version-btn active" id="bwVersionBtn" type="button">흑백 버전</button>
+        <button class="version-btn" id="colorVersionBtn" type="button">채색 버전</button>
+      </div>
+      <div class="version-note" id="versionNote">현재: 흑백 버전</div>
 
       <div class="comic-frame">
         <div class="comic-image-wrap" id="comicImageWrap">
@@ -202,7 +216,7 @@ for(let i=0;i<TOTAL_EPISODES;i++){
     dDay,
     title:`D-${dDay}`,
     publishDate:addDays(start,i),
-    image:`${IMAGE_FOLDER}/d-${dDay}.png`
+    images:{bw:`${IMAGE_FOLDER}/d-${dDay}.png`,color:`${IMAGE_FOLDER}/d-${dDay}c.png`}
   });
 }
 function isReleased(ep){
@@ -220,10 +234,24 @@ const comicImage=$("comicImage"),comicImageWrap=$("comicImageWrap"),imageLoading
 const prevBtn=$("prevBtn"),nextBtn=$("nextBtn"),prevName=$("prevName"),nextName=$("nextName");
 const episodeList=$("episodeList"),sidebarProgress=$("sidebarProgress"),mobileEpisodeList=$("mobileEpisodeList");
 const mobileListBtn=$("mobileListBtn"),mobileDrawerBg=$("mobileDrawerBg"),drawerClose=$("drawerClose");
+const bwVersionBtn=$("bwVersionBtn"),colorVersionBtn=$("colorVersionBtn"),versionNote=$("versionNote");
 
 let currentIndex=getLatestReleasedIndex();
+let currentVersion="bw";
+
+function getCurrentImagePath(ep){
+  return currentVersion==="color" ? ep.images.color : ep.images.bw;
+}
+
+function updateVersionButtons(){
+  const isBw=currentVersion==="bw";
+  bwVersionBtn.classList.toggle("active",isBw);
+  colorVersionBtn.classList.toggle("active",!isBw);
+  versionNote.textContent=`현재: ${isBw ? "흑백 버전" : "채색 버전"}`;
+}
 
 function loadComicImage(ep){
+  const imagePath=getCurrentImagePath(ep);
   imageLoading.style.display="flex";
   comicImage.style.display="none";
   imageError.style.display="none";
@@ -236,10 +264,11 @@ function loadComicImage(ep){
     imageLoading.style.display="none";
     comicImage.style.display="none";
     imageError.style.display="flex";
-    imageErrorFile.textContent=ep.image;
+    imageErrorFile.textContent=imagePath;
   };
-  comicImage.src=ep.image;
-  comicImage.alt=`${ep.title} 만화`;
+  comicImage.src=imagePath;
+  comicImage.alt=`${ep.title} ${currentVersion==="color" ? "채색" : "흑백"} 만화`;
+  updateVersionButtons();
 }
 
 function updateNavigation(){
@@ -315,6 +344,18 @@ function openEpisode(index, updateHash=true){
 prevBtn.onclick=()=>{openEpisode(currentIndex-1);window.scrollTo({top:0,behavior:"smooth"});};
 nextBtn.onclick=()=>{openEpisode(currentIndex+1);window.scrollTo({top:0,behavior:"smooth"});};
 
+bwVersionBtn.onclick=()=>{
+  if(currentVersion==="bw")return;
+  currentVersion="bw";
+  loadComicImage(episodes[currentIndex]);
+};
+
+colorVersionBtn.onclick=()=>{
+  if(currentVersion==="color")return;
+  currentVersion="color";
+  loadComicImage(episodes[currentIndex]);
+};
+
 mobileListBtn.onclick=()=>{
   mobileDrawerBg.classList.add("open");
   document.body.style.overflow="hidden";
@@ -354,7 +395,7 @@ function openZoomViewer(){
   zoomModal.classList.add("open");
   document.body.style.overflow="hidden";
   zoomImage.onload=()=>{calculateBaseImageSize();resetZoom();};
-  zoomImage.src=ep.image;
+  zoomImage.src=getCurrentImagePath(ep);
 }
 function closeZoomViewer(){
   zoomModal.classList.remove("open");
