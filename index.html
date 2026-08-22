@@ -425,12 +425,13 @@ window.addEventListener("mousemove",e=>{
 });
 window.addEventListener("mouseup",()=>{dragging=false;zoomStage.classList.remove("dragging");});
 
-let touchMode=null,touchStartDistance=0,touchStartScale=1,touchStartX=0,touchStartY=0,touchOriginX=0,touchOriginY=0,lastTap=0;
+let touchMode=null,touchStartDistance=0,touchStartScale=1,touchStartX=0,touchStartY=0,touchOriginX=0,touchOriginY=0,lastTap=0,pinchJustEnded=false;
 const touchDistance=(a,b)=>Math.hypot(b.clientX-a.clientX,b.clientY-a.clientY);
 
 zoomStage.addEventListener("touchstart",e=>{
   if(e.touches.length===2){
     touchMode="pinch";
+    pinchJustEnded=true;
     touchStartDistance=touchDistance(e.touches[0],e.touches[1]);
     touchStartScale=zoomScale;
   }else if(e.touches.length===1&&zoomScale>1){
@@ -452,9 +453,24 @@ zoomStage.addEventListener("touchmove",e=>{
 },{passive:false});
 
 zoomStage.addEventListener("touchend",e=>{
+  const wasPinching = touchMode==="pinch" || pinchJustEnded;
   touchMode=null;
+
+  // 핀치 확대/축소 후 손을 떼어도 현재 배율 유지
+  if(wasPinching){
+    if(e.touches.length===0){
+      setTimeout(()=>{ pinchJustEnded=false; }, 320);
+    }
+    return;
+  }
+
   if(e.changedTouches.length===1){
     const now=Date.now();
+
+    if(pinchJustEnded){
+      return;
+    }
+
     if(now-lastTap>0&&now-lastTap<280){
       zoomScale>1?resetZoom():setZoom(2.5);
     }
