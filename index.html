@@ -94,6 +94,23 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent}
 .version-note{width:100%;max-width:760px;margin:-2px auto 10px;font-size:11px;color:#999;text-align:right}
 @media(max-width:850px){.version-toggle{width:calc(100% - 24px);margin-top:2px;margin-bottom:10px}.version-note{width:calc(100% - 24px)}}
 
+
+.view-counter{
+  display:flex;align-items:center;gap:5px;font-size:12px;color:#888;white-space:nowrap
+}
+.view-counter-label{font-weight:600}
+.view-counter-number{color:#444;font-weight:800;font-variant-numeric:tabular-nums}
+.view-counter.is-loading .view-counter-number{color:#aaa}
+@media(max-width:850px){
+  .top-header-inner{gap:10px}
+  .view-counter{font-size:11px}
+}
+
+.episode-view-inline{color:#999}
+.episode-view-inline b{color:#666;font-weight:800}
+.episode-item-right{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.episode-item-views{font-size:10px;color:#aaa;font-variant-numeric:tabular-nums;min-width:22px;text-align:right}
+.episode-item.active .episode-item-views{color:rgba(255,255,255,.72)}
 </style>
 </head>
 
@@ -102,7 +119,13 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent}
   <header class="top-header">
     <div class="top-header-inner">
       <div class="logo">수능 D-100 Ryotoon</div>
-      <div class="header-desc">수능까지, 하루 한 장</div>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div class="header-desc">수능까지, 하루 한 장</div>
+        <div class="view-counter is-loading" id="viewCounter" title="누적 방문 조회수">
+          <span class="view-counter-label">조회수</span>
+          <span class="view-counter-number" id="viewCounterNumber">-</span>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -111,7 +134,10 @@ button{font-family:inherit;-webkit-tap-highlight-color:transparent}
       <div class="episode-header">
         <div class="episode-count" id="episodeCount"></div>
         <h1 class="episode-title" id="episodeTitle">D-100</h1>
-        <div class="episode-date" id="episodeDate"></div>
+        <div class="episode-date">
+          <span id="episodeDate"></span>
+          <span class="episode-view-inline"> · 조회수 <b id="episodeViews">-</b></span>
+        </div>
       </div>
 
 
@@ -300,11 +326,20 @@ function createEpisodeItem(ep,index){
   t.className="episode-item-title"; t.textContent=ep.title;
   const d=document.createElement("div");
   d.className="episode-item-date"; d.textContent=formatDate(ep.publishDate);
+  const right=document.createElement("div");
+  right.className="episode-item-right";
+
+  const views=document.createElement("div");
+  views.className="episode-item-views";
+  views.dataset.episodeViews=ep.dDay;
+  views.textContent=released ? "-" : "";
+
   const s=document.createElement("div");
   s.className="episode-status";
   s.textContent=!released ? "🔒" : index===currentIndex ? "●" : "";
 
-  main.append(t,d); b.append(main,s);
+  right.append(views,s);
+  main.append(t,d); b.append(main,right);
   if(released)b.onclick=()=>{openEpisode(index);window.scrollTo({top:0,behavior:"smooth"});};
   return b;
 }
@@ -322,6 +357,8 @@ function renderEpisodeLists(){
     const a=episodeList.querySelector(".episode-item.active");
     if(a)a.scrollIntoView({block:"center"});
   });
+
+  refreshVisibleEpisodeCounts();
 }
 
 function openEpisode(index, updateHash=true){
@@ -335,6 +372,8 @@ function openEpisode(index, updateHash=true){
   loadComicImage(ep);
   updateNavigation();
   renderEpisodeLists();
+  recordEpisodeView(ep);
+  refreshCurrentEpisodeCount(ep);
   if(updateHash){
     history.replaceState(null,"",`#d-${ep.dDay}`);
   }
@@ -511,5 +550,156 @@ if(hashEpisode!==null){
   openEpisode(currentIndex, false);
 }
 </script>
+
+
+<script>
+/* =========================================================
+   GoatCounter 조회수
+   - 사이트 코드: ryotoon
+   - 회차별 path: /episode/d-100, /episode/d-99 ...
+   - 흑백/채색 전환은 같은 회차로 합산
+========================================================= */
+const GOATCOUNTER_CODE = "ryotoon";
+const episodeCountCache = new Map();
+let goatCounterReady = false;
+
+window.goatcounter = { no_onload: true };
+
+function episodeCounterPath(ep){
+  return `/episode/d-${ep.dDay}`;
+}
+
+function counterJsonUrl(path){
+  return `https://${GOATCOUNTER_CODE}.goatcounter.com/counter/${encodeURIComponent(path)}.json`;
+}
+
+function fetchCounter(path){
+  if(episodeCountCache.has(path)){
+    return Promise.resolve(episodeCountCache.get(path));
+  }
+
+  return fetch(counterJsonUrl(path), {cache:"no-store"})
+    .then(r => {
+      if(r.status === 404) return {count:"0"};
+      if(!r.ok) throw new Error("counter response error");
+      return r.json();
+    })
+    .then(data => {
+      const count = data && data.count != null ? String(data.count) : "0";
+      episodeCountCache.set(path, count);
+      return count;
+    });
+}
+
+function refreshTotalCount(){
+  const box=document.getElementById("viewCounter");
+  const number=document.getElementById("viewCounterNumber");
+  if(!box || !number) return;
+
+  fetch(`https://${GOATCOUNTER_CODE}.goatcounter.com/counter/TOTAL.json`, {cache:"no-store"})
+    .then(r => {
+      if(r.status===404) return {count:"0"};
+      if(!r.ok) throw new Error("total counter error");
+      return r.json();
+    })
+    .then(data => {
+      number.textContent=data.count ?? "0";
+      box.classList.remove("is-loading");
+    })
+    .catch(() => {
+      number.textContent="-";
+      box.classList.remove("is-loading");
+      box.title="조회수를 불러오지 못했습니다.";
+    });
+}
+
+function recordEpisodeView(ep){
+  const path=episodeCounterPath(ep);
+
+  // 같은 브라우저 세션에서 같은 회차를 반복 클릭해도
+  // 중복 전송을 최소화한다.
+  const key=`ryotoon-viewed-${path}`;
+  if(sessionStorage.getItem(key)) return;
+
+  const send=()=>{
+    if(window.goatcounter && typeof window.goatcounter.count==="function"){
+      window.goatcounter.count({
+        path:path,
+        title:`${ep.title} | 수능 D-100 Ryotoon`
+      });
+      sessionStorage.setItem(key,"1");
+      episodeCountCache.delete(path);
+      setTimeout(()=>{
+        refreshCurrentEpisodeCount(ep);
+        refreshEpisodeCountLabels(ep.dDay);
+        refreshTotalCount();
+      },1200);
+    }
+  };
+
+  if(goatCounterReady){
+    send();
+  }else{
+    let tries=0;
+    const timer=setInterval(()=>{
+      tries++;
+      if(window.goatcounter && typeof window.goatcounter.count==="function"){
+        clearInterval(timer);
+        goatCounterReady=true;
+        send();
+      }else if(tries>50){
+        clearInterval(timer);
+      }
+    },100);
+  }
+}
+
+function refreshCurrentEpisodeCount(ep){
+  const el=document.getElementById("episodeViews");
+  if(!el) return;
+
+  el.textContent="-";
+  fetchCounter(episodeCounterPath(ep))
+    .then(count=>{
+      if(episodes[currentIndex].dDay===ep.dDay){
+        el.textContent=count;
+      }
+    })
+    .catch(()=>{ el.textContent="-"; });
+}
+
+function refreshEpisodeCountLabels(dDay){
+  const ep=episodes.find(e=>e.dDay===dDay);
+  if(!ep || !isReleased(ep)) return;
+
+  fetchCounter(episodeCounterPath(ep))
+    .then(count=>{
+      document.querySelectorAll(`[data-episode-views="${dDay}"]`)
+        .forEach(el=>{el.textContent=count;});
+    })
+    .catch(()=>{});
+}
+
+function refreshVisibleEpisodeCounts(){
+  episodes.filter(isReleased).forEach(ep=>{
+    refreshEpisodeCountLabels(ep.dDay);
+  });
+}
+
+(function loadGoatCounter(){
+  const tracker=document.createElement("script");
+  tracker.async=true;
+  tracker.src="https://gc.zgo.at/count.js";
+  tracker.dataset.goatcounter=`https://${GOATCOUNTER_CODE}.goatcounter.com/count`;
+  tracker.onload=()=>{
+    goatCounterReady=true;
+    refreshTotalCount();
+    refreshVisibleEpisodeCounts();
+    refreshCurrentEpisodeCount(episodes[currentIndex]);
+  };
+  document.head.appendChild(tracker);
+})();
+</script>
+
 </body>
 </html>
