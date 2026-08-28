@@ -246,7 +246,9 @@ for(let i=0;i<TOTAL_EPISODES;i++){
   });
 }
 function isReleased(ep){
-  return !USE_DAILY_RELEASE || getToday()>=ep.publishDate;
+  // 각 회차는 표기 날짜의 다음 날부터 공개
+  // 예: 8/28 회차 → 8/29에 공개
+  return !USE_DAILY_RELEASE || getToday()>=addDays(ep.publishDate,1);
 }
 function getLatestReleasedIndex(){
   let latest=0;
@@ -701,5 +703,7 @@ function refreshVisibleEpisodeCounts(){
 })();
 </script>
 
+</body>
+</html>
 </body>
 </html>
